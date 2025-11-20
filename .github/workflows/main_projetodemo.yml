@@ -1,7 +1,7 @@
-# Workflow GitHub Actions - Build e Deploy de Angular no Azure App Service
+# Workflow GitHub Actions - Build e Deploy de Node.js app no Azure Web App
 # Autor: Sergio Mendes
 
-name: Build and deploy Angular app to Azure Web App - projetoDemo
+name: Build and deploy Node.js app to Azure Web App - projetoDemo
 
 on:
   push:
@@ -13,7 +13,7 @@ jobs:
   build:
     runs-on: windows-latest
     permissions:
-      contents: read
+      contents: read # Isso é necessário para actions/checkout
 
     steps:
       - name: Checkout repository
@@ -27,58 +27,37 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build Angular app (production)
-        run: npm run build -- --configuration=production
+      - name: Build Node.js app (production)
+        run: npm run build --if-present
 
-      - name: Add web.config for Angular routing
-        run: |
-          echo ^<configuration^> > dist/projetoDemo/browser/web.config
-          echo ^  ^<system.webServer^> >> dist/projetoDemo/browser/web.config
-          echo ^    ^<rewrite^> >> dist/projetoDemo/browser/web.config
-          echo ^      ^<rules^> >> dist/projetoDemo/browser/web.config
-          echo ^        ^<rule name="Angular Routes" stopProcessing="true"^> >> dist/projetoDemo/browser/web.config
-          echo ^          ^<match url=".*" /^> >> dist/projetoDemo/browser/web.config
-          echo ^          ^<conditions logicalGrouping="MatchAll"^> >> dist/projetoDemo/browser/web.config
-          echo ^            ^<add input="{REQUEST_FILENAME}" matchType="IsFile" negate="true" /^> >> dist/projetoDemo/browser/web.config
-          echo ^            ^<add input="{REQUEST_FILENAME}" matchType="IsDirectory" negate="true" /^> >> dist/projetoDemo/browser/web.config
-          echo ^          ^</conditions^> >> dist/projetoDemo/browser/web.config
-          echo ^          ^<action type="Rewrite" url="/index.html" /^> >> dist/projetoDemo/browser/web.config
-          echo ^        ^</rule^> >> dist/projetoDemo/browser/web.config
-          echo ^      ^</rules^> >> dist/projetoDemo/browser/web.config
-          echo ^    ^</rewrite^> >> dist/projetoDemo/browser/web.config
-          echo ^    ^<defaultDocument^> >> dist/projetoDemo/browser/web.config
-          echo ^      ^<files^> >> dist/projetoDemo/browser/web.config
-          echo ^        ^<add value="index.html" /^> >> dist/projetoDemo/browser/web.config
-          echo ^      ^</files^> >> dist/projetoDemo/browser/web.config
-          echo ^    ^</defaultDocument^> >> dist/projetoDemo/browser/web.config
-          echo ^  ^</system.webServer^> >> dist/projetoDemo/browser/web.config
-          echo ^</configuration^> >> dist/projetoDemo/browser/web.config
+      - name: Run tests (se presentes)
+        run: npm run test --if-present
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: angular-dist
-          path: dist/projetoDemo/browser
+          name: node-app
+          path: .
 
   deploy:
     runs-on: ubuntu-latest
     needs: build
     permissions:
-      id-token: write
-      contents: read
+      id-token: write # Isso é necessário para solicitar o JWT
+      contents: read # Isso é necessário para actions/checkout
 
     steps:
       - name: Download build artifact
         uses: actions/download-artifact@v4
         with:
-          name: angular-dist
+          name: node-app
 
       - name: Login to Azure
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_B44EC8BE5D474473B5E24D32C16605F3 }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_9A373294E5364781996CA69CFF075521 }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_94DE9DF4BEB840CF8B97F58C47FFAD4E }}
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_BD75A4E7461C48418C7AFB23994F732C }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_44965642DAC24A80BF18265669CD105B }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_ABC030A2DE4C43758AEF4D7D0BEB7FF5 }}
 
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
@@ -86,4 +65,4 @@ jobs:
         with:
           app-name: 'projetoDemo'
           slot-name: 'Production'
-          package: dist/projetoDemo/browser
+          package: .
